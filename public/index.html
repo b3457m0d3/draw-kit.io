@@ -1,89 +1,47 @@
 <html>
-<head>
-  <link rel="stylesheet" href="/css/bootstrap-responsive.css"/>
-</head>
+  <head>
+    <link rel="stylesheet" href="/css/bootstrap-responsive.css"/>
+  </head>
   <body>
     <div class="container">
       <div class="row-fluid">
-        <div class="span4">
-          <h1>Welcome on the chat</h1>
- 
-          <label for="msg-input">Broadcast message</label>
-          <input id="msg-input" name="msg-input" type="text" size="30" />
-          <p>Press enter to submit your message</p>
- 
-          <ul id="broadcast-msg"></ul>
-        </div>
-        <div class="span4">
-          <div id="editor" class="widget" style="height:260px;border:1px solid #000"></div>
-            <textarea id="data2" name="data2"> </textarea>
-
-            
+        <div class="span10">
+          <h1>Join A Room</h1>
+          <ul id="rooms" class="unstyled"></ul>
+	  <hr/>
+          <label for="roomName">
+            <input id="roomName" type="text" size="30" />
+	  </label>
+          <button class="btn" id="newRoom">Create/Join Room</button>
         </div>
     </div>
     </div>
     <!-- Include the socket.io javascript on the client side -->
     <script src="socket.io/socket.io.js"></script>
     <script src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
-    <script type="text/javascript" src="/js/raphael.js"></script>
-    <script type="text/javascript" src="/js/json2.js"></script>
-    <script type="text/javascript" src="/js/raphael.sketchpad.js"></script>
  
     
 <script type="text/javascript">
-	$(document).ready(function() {
-		var sketchpad = Raphael.sketchpad("editor", {
-			height: 260,
-			width: 260,
-			editing: true	// true is default
-		});
-
-		sketchpad.strokes([{
-			"type":"path",
-			"path":[["M",10,10],["L",90,90]],
-			"fill":"none",
-			"stroke":"#000000",
-			"stroke-opacity":1,
-			"stroke-width":5,
-			"stroke-linecap":"round",
-			"stroke-linejoin":"round"
-		}]);
-                // Establish the connection with the server
+    $(document).ready(function() {
+		
+      // Establish the connection with the server
       var socket = io.connect('http://tdl.cloudno.de:80');
  
-      // on every message recived we print the new datas inside the #broadcast-msg div
-      socket.on('broadcast_msg', function (data) {
-        console.log('Get broadcasted msg:', data);
-        var msg = '<li>' + data + '</li>';
-        $('#broadcast-msg').append(msg);
-      });
-      
-      socket.on('update_sketch', function (data) {
-        //sketchpad.json(data);
-        sketchpad.json(data);
-        $('#data2').val(sketchpad.json());
-      });
-      
       // Create a new socket connection
       socket.on('connect', function() {
- 
-        socket.emit('set nickname', prompt('What is your nickname?'));
-
-        $('#msg-input').change( function(){
-          var txt = $(this).val();
-          $(this).val('');
-          socket.emit('emit_msg', txt, function (data){
-            console.log('Emit Broadcast msg', data);
+        $('#newRoom').click(function(){
+	  socket.emit('join room', $('#roomName').val());
+	  window.location.replace('http://tdl.cloudno.de/room/'+$('#roomName').val());
+	});
+	
+        socket.on('list rooms', function(data){
+          $.each(data,function(num,key){
+	    if(key>0) $('#rooms').append("<li><a href='http://tdl.cloudno.de/room"+num+"'>"+num+"</a></li>");
           });
         });
-        sketchpad.change(function() {
-            $('#data2').val(sketchpad.json());
-            socket.emit('draw', $('#data2').val());
-        });
- 
       });
 		
-	});
+    });
 </script>
   </body>
 </html>

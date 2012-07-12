@@ -6,7 +6,7 @@ var io = require('socket.io').listen(app)
 , _ = require('underscore')._
 , backbone = require('backbone');
 
-
+var room_name = null;
  
 //express static server
 app.configure(function(){
@@ -36,46 +36,70 @@ app.get("/js/json2.js", function(req, res) {
 app.get("/js/raphael.sketchpad.js", function(req, res) {
   res.redirect("/js/raphael.sketchpad.js");
 });
-app.get('/db', function(req, res){
-    res.send('Hello World '+response); 
+
+app.get('/room/:id', function(req, res) {
+  room_name = req.params.id;
+  res.redirect('/chat.html');
+   
 });
+
  
 app.listen(9004);
 
-// creating a new websocket to keep the content updated without any AJAX request
+
 io.sockets.on('connection', function(socket) {
- 
-  socket.on('set nickname', function(nickname) {
-    // Save a variable 'nickname'
+ if(room_name==null){
+   socket.set('room', 'room1', function() { console.log('room ' + 'room1' + ' saved'); } );
+   socket.join('room1');
+ } else {
+  socket.set('room', room_name, function() { console.log('room ' + room_name + ' saved'); } );
+  socket.join(room_name);
+ }
+ //io.sockets.volatile.emit('list rooms',io.sockets.manager.rooms);
+ socket.on('join room', function(room){
+   socket.set('room', room, function() { console.log('room ' + room + ' saved'); } );
+   socket.join(room);
+ });
+ socket.on('set nickname', function(nickname) {
     socket.set('nickname', nickname, function() {
       console.log('Connect', nickname);
-      var connected_msg = '<b>' + nickname + ' is now connected.</b>';
- 
-      io.sockets.volatile.emit('broadcast_msg', connected_msg);
+      socket.get('room', function(err, room) {
+        var curr_room = room;
+        var connected_msg = '<b>' + nickname + ' is now connected.</b>';
+        io.sockets.in(curr_room).emit('broadcast_msg', connected_msg);
+      });
     });
   });
  
   socket.on('emit_msg', function (msg) {
     // Get the variable 'nickname'
-    socket.get('nickname', function (err, nickname) {
-      console.log('Chat message by', nickname);
-      io.sockets.volatile.emit( 'broadcast_msg' , nickname + ': ' + msg );
+    socket.get('room', function(err, room) {
+      var curr_room = room;
+      socket.get('nickname', function (err, nickname) {
+        console.log('Chat message by', nickname + ': ' + curr_room);
+        io.sockets.in(curr_room).emit('broadcast_msg' , nickname + ': ' + msg );
+      });
     });
   });
 
   socket.on('draw', function (json) {
-      io.sockets.volatile.emit( 'update_sketch' , json);
-      
+    socket.get('room', function(err, room) {
+      var curr_room = room;
+      io.sockets.in(curr_room).emit( 'update_sketch' , json);
+    });
   });
  
   // Handle disconnection of clients
   socket.on('disconnect', function () {
-    socket.get('nickname', function (err, nickname) {
-      console.log('Disconnect', nickname);
-      var disconnected_msg = '<b>' + nickname + ' has disconnected.</b>'
- 
-      // Broadcast to all users the disconnection message
-      io.sockets.volatile.emit( 'broadcast_msg' , disconnected_msg);
+    socket.get('room', function(err, room) {
+      var curr_room = room;
+      socket.get('nickname', function (err, nickname) {
+        console.log('Disconnect', nickname);
+        var disconnected_msg = '<b>' + nickname + ' has disconnected.</b>'
+   
+        // Broadcast to all users the disconnection message
+        io.sockets.in(curr_room).emit( 'broadcast_msg' , disconnected_msg);
+      });
     });
   });
 });
